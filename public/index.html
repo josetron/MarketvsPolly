@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Earnings Predict // Polymarket vs Nasdaq</title>
+  <meta name="description" content="Compare wall street corporate earnings expectations vs Polymarket prediction odds in real time.">
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+</head>
+<body>
+  <!-- Ambient background glow elements -->
+  <div class="glow-sphere glow-1"></div>
+  <div class="glow-sphere glow-2"></div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-logo">
+        <div class="logo-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 13.5L9 7.5L13.5 12L21 4.5" stroke="url(#logoGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M17 4.5H21V8.5" stroke="url(#logoGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 20H21" stroke="rgba(255,255,255,0.2)" stroke-width="2" stroke-linecap="round"/>
+            <defs>
+              <linearGradient id="logoGrad" x1="3" y1="4.5" x2="21" y2="13.5" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#00FFA3" />
+                <stop offset="1" stop-color="#8B5CF6" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <h1>Earnings<span class="gradient-text">Predict</span></h1>
+      </div>
+
+      <div class="header-actions">
+        <!-- Date Selector Controller -->
+        <div class="date-controller">
+          <button id="btnPrevDay" class="btn-icon" title="Previous Day">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <div class="date-picker-wrapper">
+            <input type="date" id="datePicker" class="date-input">
+            <span id="displayDate" class="display-date">June 4, 2026</span>
+          </div>
+          <button id="btnNextDay" class="btn-icon" title="Next Day">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <!-- Search input -->
+        <div class="search-wrapper">
+          <svg class="search-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input type="text" id="searchBar" placeholder="Filter by symbol, company...">
+        </div>
+      </div>
+    </header>
+
+    <!-- Stats Overview Section -->
+    <section class="stats-overview">
+      <div class="stat-card">
+        <div class="stat-icon-wrapper match-icon">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Prediction Contracts</span>
+          <span id="statMatches" class="stat-value">-</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrapper calendar-icon">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Total Earnings Releases</span>
+          <span id="statTotalEarnings" class="stat-value">-</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrapper volume-icon">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Total Prediction Volume</span>
+          <span id="statVolume" class="stat-value">-</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrapper sentiment-icon">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Polymarket Beat Chance</span>
+          <span id="statSentiment" class="stat-value">-</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Collapsible Market Insights & Strategy Guide -->
+    <section class="strategy-guide-panel glass-panel">
+      <button id="btnToggleStrategy" class="strategy-toggle">
+        <div class="toggle-title">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364.364l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+          <h3>Market Insights & Trading Strategy Guide</h3>
+        </div>
+        <span class="toggle-indicator" id="strategyIndicator">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+        </span>
+      </button>
+      
+      <div id="strategyContent" class="strategy-content hidden">
+        <div class="strategy-grid">
+          <div class="strategy-card">
+            <h4>1. Compare to the "Whisper Number"</h4>
+            <p>Look for wide deltas between the <strong>Nasdaq Estimate</strong> (Wall Street consensus) and the <strong>Polymarket Target</strong> (prediction consensus). If there is a large delta and the stock price has traded flat/down recently, the equity market may be mispricing an upside beat. Conversely, if the stock has already rallied heavily, it may be already priced in.</p>
+          </div>
+          
+          <div class="strategy-card">
+            <h4>2. Cross-Reference Options Market</h4>
+            <p>Polymarket reflects the <em>probability</em> of a beat, not the <em>magnitude</em> of price movement. Cross-reference the contract probability with the options <strong>Implied Move (Implied Volatility)</strong>. Skewed option prices or heavy put buying signals market concern over forward guidance, regardless of a high Polymarket beat probability.</p>
+          </div>
+          
+          <div class="strategy-card">
+            <h4>3. The "Forward Guidance" Blindspot</h4>
+            <p>Polymarket contracts resolve strictly on headline EPS or revenue numbers. However, stock prices react heavily to Q2/FY outlooks. A company might easily beat Q1 estimates but sell off immediately if they issue soft forward guidance. Consider fading initial algorithmic headline spikes if outlook indicators are weak.</p>
+          </div>
+          
+          <div class="strategy-card">
+            <h4>4. Signal Strength (Liquidity Check)</h4>
+            <p>Prediction market signals are directly tied to contract volume and liquidity. Shallow liquidity pools (e.g. low volume contracts) represent retail speculation rather than institutional capital. A low-volume contract odds signal is weak and should be stress-tested against macro sector trends.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Grid Dashboard -->
+    <main class="dashboard-grid">
+      <!-- COLUMN 1: Polymarket Matches -->
+      <section class="col-matched">
+        <div class="col-header">
+          <div class="col-title-group">
+            <span class="pulse-indicator"></span>
+            <h2>Matched Prediction Markets</h2>
+            <span id="badgeMatchedCount" class="count-badge">-</span>
+          </div>
+          <p class="col-subtitle">Earnings calendar events matched with active Polymarket betting contracts</p>
+        </div>
+
+        <div id="loaderMatched" class="loader-container">
+          <div class="spinner"></div>
+          <p>Fetching active earnings markets...</p>
+        </div>
+
+        <div id="containerMatched" class="cards-container">
+          <!-- Dynamically populated matched cards -->
+        </div>
+
+        <div id="emptyMatched" class="empty-state hidden">
+          <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <h3>No Polymarket Matches</h3>
+          <p>There are no active prediction contracts matched for the selected date.</p>
+        </div>
+      </section>
+
+      <!-- COLUMN 2: Other Earnings -->
+      <section class="col-unmatched">
+        <div class="col-header">
+          <div class="col-title-group">
+            <h2>Other Earnings Releases</h2>
+            <span id="badgeUnmatchedCount" class="count-badge">-</span>
+          </div>
+          <p class="col-subtitle">Companies reporting earnings on this date without prediction markets</p>
+        </div>
+
+        <div id="loaderUnmatched" class="loader-container">
+          <div class="spinner"></div>
+          <p>Fetching Nasdaq calendar...</p>
+        </div>
+
+        <div id="containerUnmatched" class="cards-container grid-2-col">
+          <!-- Dynamically populated simple cards -->
+        </div>
+
+        <div id="emptyUnmatched" class="empty-state hidden">
+          <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <h3>No Other Earnings</h3>
+          <p>No other companies are scheduled to release earnings on this date.</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- App Footer -->
+    <footer class="app-footer">
+      <p>EarningsPredict © 2026 // Real-time market odds sourced from Polymarket. Calendar data sourced from Nasdaq.</p>
+      <p class="footer-note">All data is for reference purposes and does not constitute financial advice. Last updated: <span id="lastUpdated">-</span></p>
+    </footer>
+  </div>
+
+  <!-- Detail Side-Drawer -->
+  <div id="detailDrawer" class="drawer-overlay hidden">
+    <div class="drawer-content">
+      <button id="closeDrawer" class="drawer-close" title="Close Panel">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+
+      <div class="drawer-header">
+        <div class="drawer-ticker-row">
+          <span id="drawerTicker" class="ticker-badge">TICKER</span>
+          <span id="drawerTime" class="time-badge">Time</span>
+        </div>
+        <div class="drawer-company-row">
+          <h2 id="drawerCompany">Company Name Inc.</h2>
+          <a id="drawerEarningsLink" href="#" target="_blank" class="drawer-earnings-link hidden">
+            Earnings
+            <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-left: 2px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+          </a>
+        </div>
+        <p id="drawerQuestion">Will Company Beat Earnings?</p>
+      </div>
+
+      <div class="drawer-body">
+        <!-- Probability Grid -->
+        <div class="drawer-section">
+          <h3>Current Odds</h3>
+          <div class="odds-display-large">
+            <div class="odds-pill yes">
+              <span class="odds-val" id="drawerYesPrice">74¢</span>
+              <span class="odds-lbl">YES (Beat)</span>
+            </div>
+            <div class="odds-pill no">
+              <span class="odds-val" id="drawerNoPrice">26¢</span>
+              <span class="odds-lbl">NO (Miss/Inline)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metrics Comparison -->
+        <div class="drawer-section">
+          <h3>Metrics Comparison</h3>
+          <div class="metrics-grid">
+            <div class="metric-box">
+              <span class="metric-label">Polymarket Target EPS</span>
+              <span class="metric-value" id="drawerTargetEps">$1.68</span>
+              <span class="metric-sub" id="drawerEpsType">GAAP</span>
+            </div>
+            <div class="metric-box hidden" id="drawerKalshiBox">
+              <span class="metric-label">Kalshi Mentions</span>
+              <span class="metric-value" id="drawerKalshiValue">-</span>
+              <span class="metric-sub">Active Buzzwords</span>
+            </div>
+            <div class="metric-box">
+              <span class="metric-label">Nasdaq Forecast EPS</span>
+              <span class="metric-value" id="drawerForecastEps">$1.67</span>
+              <span class="metric-sub" id="drawerNoOfEsts">9 Analysts</span>
+            </div>
+            <div class="metric-box highlighted">
+              <span class="metric-label">Actual Reported EPS</span>
+              <span class="metric-value" id="drawerActualEps">-</span>
+              <span class="metric-sub" id="drawerSurprise">Surprise: -</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Strategic Trade Assessment -->
+        <div class="drawer-section">
+          <h3>Strategic Trade Assessment</h3>
+          <div class="strategic-assessment-box">
+            <div class="assessment-row">
+              <div class="assessment-col">
+                <span class="assessment-lbl">Current Price</span>
+                <span id="drawerCurrentPrice" class="assessment-val">-</span>
+              </div>
+              <div class="assessment-col">
+                <span class="assessment-lbl">52-Week Range Pos</span>
+                <span id="drawer52WeekRange" class="assessment-val">-</span>
+              </div>
+            </div>
+            
+            <div class="assessment-row">
+              <div class="assessment-col">
+                <span class="assessment-lbl">2-Week Stock Return</span>
+                <span id="drawerStockReturn" class="assessment-val">-</span>
+              </div>
+              <div class="assessment-col">
+                <span class="assessment-lbl" id="drawerSectorReturnLabel">Sector Return (ETF)</span>
+                <span id="drawerSectorReturn" class="assessment-val">-</span>
+              </div>
+            </div>
+            
+            <div class="assessment-row">
+              <div class="assessment-col">
+                <span class="assessment-lbl">Sector-Relative Return</span>
+                <span id="drawerRelativeReturn" class="assessment-val">-</span>
+              </div>
+              <div class="assessment-col">
+                <span class="assessment-lbl">Opportunity Rating</span>
+                <span id="drawerOpportunityRating" class="assessment-val">-</span>
+              </div>
+            </div>
+
+            <div class="assessment-row">
+              <div class="assessment-col">
+                <span class="assessment-lbl">Expectation Delta</span>
+                <span id="drawerWhisperDelta" class="assessment-val">-</span>
+              </div>
+              <div class="assessment-col">
+                <span class="assessment-lbl">Signal Strength</span>
+                <span id="drawerSignalStrength" class="assessment-val">-</span>
+              </div>
+            </div>
+
+            <div class="assessment-analysis" id="drawerStrategicAnalysis">
+              Select a matched card to view strategic analysis guidelines.
+            </div>
+          </div>
+        </div>
+
+        <!-- Kalshi Buzzword Predictions -->
+        <div class="drawer-section" id="drawerKalshiSection">
+          <h3>Kalshi Buzzword Predictions</h3>
+          <p class="section-subtitle">Probability of key words/phrases being mentioned during the conference call</p>
+          <div id="drawerKalshiContainer" class="kalshi-markets-container">
+            <div class="loader-container inline-loader">
+              <div class="spinner mini"></div>
+              <p>Checking Kalshi markets...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Context Description -->
+        <div class="drawer-section">
+          <h3>Market Context & Rules</h3>
+          <div class="context-content" id="drawerDescription">
+            Loading context information...
+          </div>
+        </div>
+      </div>
+
+      <div class="drawer-footer">
+        <a id="btnLinkPolymarket" href="#" target="_blank" class="btn btn-primary">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+          Trade on Polymarket
+        </a>
+        <a id="btnLinkNasdaq" href="#" target="_blank" class="btn btn-secondary">
+          View on Nasdaq
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
