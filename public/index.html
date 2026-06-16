@@ -333,29 +333,35 @@
 
         <!-- Simply Wall St Valuation -->
         <div class="drawer-section" id="drawerSwsSection">
-          <h3>Simply Wall St Valuation</h3>
+          <div class="drawer-section-header" style="display: flex; align-items: center; justify-content: space-between;">
+            <h3>Simply Wall St Valuation</h3>
+            <a id="drawerSwsLink" href="#" target="_blank" class="drawer-earnings-link hidden" style="margin-bottom: 8px;">
+              View on SWS
+              <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-left: 2px; vertical-align: middle;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+            </a>
+          </div>
           <p class="section-subtitle">Fundamental valuation analysis from Simply Wall St (Price vs Value)</p>
           <div class="sws-metrics-grid">
-            <div class="sws-metric-box">
-              <span class="sws-metric-lbl">SWS Fair Value (DCF)</span>
+            <a id="drawerSwsDcfLink" href="#" target="_blank" class="sws-metric-box clickable-box" title="Click to view valuation details on Simply Wall St.">
+              <span class="sws-metric-lbl">SWS Fair Value (DCF) <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-left: 2px; vertical-align: middle; opacity: 0.8;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg></span>
               <span id="drawerSwsFairValue" class="sws-metric-val">-</span>
               <span id="drawerSwsFairValueStatus" class="sws-metric-sub">-</span>
-            </div>
-            <div class="sws-metric-box">
-              <span class="sws-metric-lbl">PE vs Peers</span>
+            </a>
+            <a id="drawerSwsPePeersLink" href="#" target="_blank" class="sws-metric-box clickable-box" title="Click to view peers PE ratio comparison on Simply Wall St.">
+              <span class="sws-metric-lbl">PE vs Peers <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-left: 2px; vertical-align: middle; opacity: 0.8;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg></span>
               <span id="drawerSwsPePeers" class="sws-metric-val">-</span>
               <span id="drawerSwsPePeersStatus" class="sws-metric-sub">-</span>
-            </div>
-            <div class="sws-metric-box">
-              <span class="sws-metric-lbl">PE vs Industry</span>
+            </a>
+            <a id="drawerSwsPeIndustryLink" href="#" target="_blank" class="sws-metric-box clickable-box" title="Click to view industry PE ratio comparison on Simply Wall St.">
+              <span class="sws-metric-lbl">PE vs Industry <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-left: 2px; vertical-align: middle; opacity: 0.8;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg></span>
               <span id="drawerSwsPeIndustry" class="sws-metric-val">-</span>
               <span id="drawerSwsPeIndustryStatus" class="sws-metric-sub">-</span>
-            </div>
-            <div class="sws-metric-box">
-              <span class="sws-metric-lbl">Analyst Target Upside</span>
+            </a>
+            <a id="drawerSwsAnalystLink" href="#" target="_blank" class="sws-metric-box clickable-box" title="Click to view analyst price targets on Simply Wall St.">
+              <span class="sws-metric-lbl">Analyst Target Upside <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-left: 2px; vertical-align: middle; opacity: 0.8;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg></span>
               <span id="drawerSwsAnalystTarget" class="sws-metric-val">-</span>
               <span id="drawerSwsAnalystStatus" class="sws-metric-sub">-</span>
-            </div>
+            </a>
           </div>
         </div>
 

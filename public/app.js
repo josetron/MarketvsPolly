@@ -74,6 +74,22 @@ const drawerSectorBeatLabel = document.getElementById('drawerSectorBeatLabel');
 const drawerSectorBeatRate = document.getElementById('drawerSectorBeatRate');
 const drawerSectorBeatRatio = document.getElementById('drawerSectorBeatRatio');
 
+// Simply Wall St Valuation drawer fields
+const drawerSwsLink = document.getElementById('drawerSwsLink');
+const drawerSwsDcfLink = document.getElementById('drawerSwsDcfLink');
+const drawerSwsPePeersLink = document.getElementById('drawerSwsPePeersLink');
+const drawerSwsPeIndustryLink = document.getElementById('drawerSwsPeIndustryLink');
+const drawerSwsAnalystLink = document.getElementById('drawerSwsAnalystLink');
+
+const drawerSwsFairValue = document.getElementById('drawerSwsFairValue');
+const drawerSwsFairValueStatus = document.getElementById('drawerSwsFairValueStatus');
+const drawerSwsPePeers = document.getElementById('drawerSwsPePeers');
+const drawerSwsPePeersStatus = document.getElementById('drawerSwsPePeersStatus');
+const drawerSwsPeIndustry = document.getElementById('drawerSwsPeIndustry');
+const drawerSwsPeIndustryStatus = document.getElementById('drawerSwsPeIndustryStatus');
+const drawerSwsAnalystTarget = document.getElementById('drawerSwsAnalystTarget');
+const drawerSwsAnalystStatus = document.getElementById('drawerSwsAnalystStatus');
+
 // ==========================================================================
 // HELPERS & PARSERS
 // ==========================================================================
@@ -953,6 +969,13 @@ function openDetailDrawer(item) {
   // Hide Google Finance Earnings link in the drawer by default while loading
   const drawerEarningsLink = document.getElementById('drawerEarningsLink');
   if (drawerEarningsLink) drawerEarningsLink.classList.add('hidden');
+
+  // Hide Simply Wall St links by default while loading
+  if (drawerSwsLink) drawerSwsLink.classList.add('hidden');
+  if (drawerSwsDcfLink) drawerSwsDcfLink.removeAttribute('href');
+  if (drawerSwsPePeersLink) drawerSwsPePeersLink.removeAttribute('href');
+  if (drawerSwsPeIndustryLink) drawerSwsPeIndustryLink.removeAttribute('href');
+  if (drawerSwsAnalystLink) drawerSwsAnalystLink.removeAttribute('href');
   
   drawerTicker.textContent = polymarket.ticker;
   drawerCompany.textContent = nasdaq.name;
@@ -1536,6 +1559,18 @@ async function loadSwsValuation(ticker, item) {
 }
 
 function renderSwsValuationFields(data) {
+  // Bind href attributes to Simply Wall St URL
+  if (data.swsUrl) {
+    if (drawerSwsLink) {
+      drawerSwsLink.href = data.swsUrl;
+      drawerSwsLink.classList.remove('hidden');
+    }
+    if (drawerSwsDcfLink) drawerSwsDcfLink.href = data.swsUrl + '#valuation';
+    if (drawerSwsPePeersLink) drawerSwsPePeersLink.href = data.swsUrl + '#valuation';
+    if (drawerSwsPeIndustryLink) drawerSwsPeIndustryLink.href = data.swsUrl + '#valuation';
+    if (drawerSwsAnalystLink) drawerSwsAnalystLink.href = data.swsUrl + '#future';
+  }
+
   if (data.dcfFairValue !== null && data.dcfFairValue !== undefined) {
     drawerSwsFairValue.textContent = `$${data.dcfFairValue.toFixed(2)}`;
     const discountPct = data.dcfDiscount ? Math.round(data.dcfDiscount * 100) : 0;

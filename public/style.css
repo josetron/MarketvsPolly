@@ -1492,6 +1492,19 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  text-decoration: none;
+  color: inherit;
+  box-sizing: border-box;
+}
+.sws-metric-box.clickable-box {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.sws-metric-box.clickable-box:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
+  border-color: rgba(0, 255, 163, 0.35);
+  box-shadow: 0 4px 12px rgba(0, 255, 163, 0.1);
 }
 .sws-metric-lbl {
   font-size: 10px;

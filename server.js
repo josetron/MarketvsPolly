@@ -860,6 +860,7 @@ const server = http.createServer(async (req, res) => {
       console.log(`Resolved Simply Wall St URL for ${tickerUpper}: ${swsUrl}`);
       const pageResult = await fetchHttps(swsUrl);
       const swsData = parseSwsState(pageResult.body);
+      swsData.swsUrl = swsUrl;
       
       swsValuationCache[tickerUpper] = {
         timestamp: now,
