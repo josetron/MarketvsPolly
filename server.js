@@ -474,12 +474,254 @@ async function findKalshiSeriesForTicker(ticker, companyName) {
 
 const swsValuationCache = {};
 
+let pythonCommand = 'python3'; // Default to Linux cloud standard
+
+function detectPythonCommand() {
+  return new Promise((resolve) => {
+    // Try python3 first
+    execFile('python3', ['--version'], (err) => {
+      if (!err) {
+        pythonCommand = 'python3';
+        console.log(`Detected python: ${pythonCommand}`);
+        resolve();
+        return;
+      }
+      // Try python
+      execFile('python', ['--version'], (err2) => {
+        if (!err2) {
+          pythonCommand = 'python';
+          console.log(`Detected python: ${pythonCommand}`);
+          resolve();
+          return;
+        }
+        // Try the hardcoded Windows path
+        const winPath = 'E:\\Python\\Python312\\python.exe';
+        if (fs.existsSync(winPath)) {
+          pythonCommand = winPath;
+          console.log(`Detected python: ${pythonCommand}`);
+          resolve();
+          return;
+        }
+        // Fallback default
+        pythonCommand = 'python';
+        console.log(`No python executable detected, falling back to: ${pythonCommand}`);
+        resolve();
+      });
+    });
+  });
+}
+
+const yahooToSwsIndustry = {
+  'Auto Manufacturers': 'automobiles',
+  'Auto Parts': 'automobiles',
+  'Auto & Truck Dealerships': 'retail',
+  'Banks—Diversified': 'banks',
+  'Banks—Regional': 'banks',
+  'Aerospace & Defense': 'capital-goods',
+  'Building Products & Equipment': 'capital-goods',
+  'Building Materials': 'materials',
+  'Electrical Equipment & Parts': 'capital-goods',
+  'Farm & Heavy Construction Machinery': 'capital-goods',
+  'Engineering & Construction': 'capital-goods',
+  'Industrial Distribution': 'capital-goods',
+  'Tools & Accessories': 'capital-goods',
+  'Metal Fabrication': 'capital-goods',
+  'Pollution & Treatment Controls': 'capital-goods',
+  'Consulting Services': 'commercial-services',
+  'Staffing & Employment Services': 'commercial-services',
+  'Waste Management': 'commercial-services',
+  'Advertising Agencies': 'media',
+  'Specialty Business Services': 'commercial-services',
+  'Security & Protection Services': 'commercial-services',
+  'Rental & Leasing Services': 'commercial-services',
+  'Furnishings, Fixtures & Appliances': 'consumer-durables',
+  'Residential Construction': 'consumer-durables',
+  'Recreational Vehicles': 'consumer-durables',
+  'Apparel Manufacturing': 'consumer-durables',
+  'Footwear & Accessories': 'consumer-durables',
+  'Education & Training Services': 'consumer-services',
+  'Travel Services': 'consumer-services',
+  'Resorts & Casinos': 'consumer-services',
+  'Restaurants': 'consumer-services',
+  'Leisure': 'consumer-services',
+  'Gambling': 'consumer-services',
+  'Asset Management': 'diversified-financials',
+  'Capital Markets': 'diversified-financials',
+  'Credit Services': 'diversified-financials',
+  'Financial Conglomerates': 'diversified-financials',
+  'Oil & Gas E&P': 'energy',
+  'Oil & Gas Integrated': 'energy',
+  'Oil & Gas Midstream': 'energy',
+  'Oil & Gas Refining & Marketing': 'energy',
+  'Oil & Gas Equipment & Services': 'energy',
+  'Beverages—Non-Alcoholic': 'food-beverage-tobacco',
+  'Beverages—Brewers': 'food-beverage-tobacco',
+  'Beverages—Wineries & Distilleries': 'food-beverage-tobacco',
+  'Confectioners': 'food-beverage-tobacco',
+  'Packaged Foods': 'food-beverage-tobacco',
+  'Tobacco': 'food-beverage-tobacco',
+  'Food Distribution': 'food-beverage-tobacco',
+  'Farm Products': 'food-beverage-tobacco',
+  'Biotechnology': 'pharmaceuticals-biotech',
+  'Drug Manufacturers—Specialty & Generic': 'pharmaceuticals-biotech',
+  'Drug Manufacturers—General': 'pharmaceuticals-biotech',
+  'Diagnostics & Research': 'healthcare',
+  'Medical Care Facilities': 'healthcare',
+  'Medical Devices': 'healthcare',
+  'Medical Instruments & Supplies': 'healthcare',
+  'Medical Distribution': 'healthcare',
+  'Health Information Services': 'healthcare',
+  'Household & Personal Products': 'household-personal-products',
+  'Insurance Brokers': 'insurance',
+  'Insurance—Life': 'insurance',
+  'Insurance—Property & Casualty': 'insurance',
+  'Insurance—Diversified': 'insurance',
+  'Chemicals': 'materials',
+  'Specialty Chemicals': 'materials',
+  'Gold': 'materials',
+  'Steel': 'materials',
+  'Copper': 'materials',
+  'Aluminum': 'materials',
+  'Other Industrial Metals & Mining': 'materials',
+  'Other Precious Metals & Mining': 'materials',
+  'Silver': 'materials',
+  'Uranium': 'materials',
+  'Agricultural Inputs': 'materials',
+  'Paper & Paper Products': 'materials',
+  'Entertainment': 'media',
+  'Publishing': 'media',
+  'Broadcasting': 'media',
+  'REIT—Hotel & Motel': 'real-estate',
+  'REIT—Residential': 'real-estate',
+  'REIT—Industrial': 'real-estate',
+  'REIT—Office': 'real-estate',
+  'REIT—Retail': 'real-estate',
+  'REIT—Specialty': 'real-estate',
+  'REIT—Diversified': 'real-estate',
+  'Real Estate Services': 'real-estate',
+  'Apparel Retail': 'retail',
+  'Specialty Retail': 'retail',
+  'Internet Retail': 'retail',
+  'Grocery Stores': 'retail',
+  'Discount Stores': 'retail',
+  'Department Stores': 'retail',
+  'Pharmaceutical Retailers': 'retail',
+  'Home Improvement Retail': 'retail',
+  'Luxury Goods': 'retail',
+  'Semiconductors': 'semiconductors',
+  'Semiconductor Equipment & Materials': 'semiconductors',
+  'Software—Application': 'software',
+  'Software—Infrastructure': 'software',
+  'Electronic Gaming & Multimedia': 'software',
+  'Computer Hardware': 'tech',
+  'Consumer Electronics': 'tech',
+  'Electronic Components': 'tech',
+  'Communication Equipment': 'tech',
+  'Scientific & Technical Instruments': 'tech',
+  'Telecom Services': 'telecom',
+  'Integrated Freight & Logistics': 'transportation',
+  'Marine Shipping': 'transportation',
+  'Railroads': 'transportation',
+  'Trucking': 'transportation',
+  'Airports & Air Services': 'transportation',
+  'Utilities—Regulated Electric': 'utilities',
+  'Utilities—Regulated Gas': 'utilities',
+  'Utilities—Regulated Water': 'utilities',
+  'Utilities—Independent Power Producers': 'utilities',
+  'Utilities—Renewable': 'utilities'
+};
+
+function buildSwsUrlDeterministic(ticker, companyName, exchange, sector, industry) {
+  let exchangeSlug = 'nasdaq';
+  if (exchange) {
+    const ex = exchange.toUpperCase();
+    if (ex === 'NYQ' || ex === 'NYSE' || ex.includes('NYS')) {
+      exchangeSlug = 'nyse';
+    } else if (ex === 'ASE' || ex === 'AMEX') {
+      exchangeSlug = 'amex';
+    }
+  }
+  const tickerSlug = `${exchangeSlug}-${ticker.toLowerCase()}`;
+  
+  let industrySlug = 'retail';
+  if (industry && yahooToSwsIndustry[industry]) {
+    industrySlug = yahooToSwsIndustry[industry];
+  } else if (sector) {
+    const sectorSlugMap = {
+      'Technology': 'tech',
+      'Healthcare': 'healthcare',
+      'Financial Services': 'diversified-financials',
+      'Financial': 'diversified-financials',
+      'Energy': 'energy',
+      'Utilities': 'utilities',
+      'Basic Materials': 'materials',
+      'Industrials': 'capital-goods',
+      'Consumer Cyclical': 'retail',
+      'Consumer Defensive': 'food-beverage-tobacco',
+      'Communication Services': 'telecom'
+    };
+    if (sectorSlugMap[sector]) {
+      industrySlug = sectorSlugMap[sector];
+    }
+  }
+  
+  let cleanName = companyName || '';
+  cleanName = cleanName.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  cleanName = cleanName.toLowerCase();
+  
+  const suffixes = [
+    /\bincorporated\b/g, /\bcorporation\b/g, /\bclass [a-z]\b/g,
+    /\binc\b\.?/g, /\bcorp\b\.?/g, /\bco\b\.?/g, /\bltd\b\.?/g,
+    /\bplc\b/g, /\bcommon stock\b/g, /\btrust\b/g
+  ];
+  for (const pattern of suffixes) {
+    cleanName = cleanName.replace(pattern, '');
+  }
+  
+  cleanName = cleanName.replace(/[&'.,]/g, '');
+  cleanName = cleanName.replace(/[\s_]+/g, '-');
+  cleanName = cleanName.replace(/-+/g, '-');
+  cleanName = cleanName.replace(/^-+|-+$/g, '');
+  
+  return `https://simplywall.st/stocks/us/${industrySlug}/${tickerSlug}/${cleanName}`;
+}
+
+async function resolveSwsUrlDeterministic(tickerUpper) {
+  const searchUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${tickerUpper}`;
+  const searchResult = await fetchHttps(searchUrl);
+  const searchData = JSON.parse(searchResult.body);
+  if (!searchData || !searchData.quotes || searchData.quotes.length === 0) {
+    return null;
+  }
+  
+  // Find the quote that matches the symbol or default to first quote
+  let quote = searchData.quotes.find(q => q.symbol && q.symbol.toUpperCase() === tickerUpper);
+  if (!quote) {
+    quote = searchData.quotes[0];
+  }
+  
+  if (!quote || !quote.longname) {
+    return null;
+  }
+  
+  const companyName = quote.longname;
+  const exchange = quote.exchDisp || quote.exchange;
+  const sector = quote.sector;
+  const industry = quote.industry;
+  
+  const swsUrl = buildSwsUrlDeterministic(tickerUpper, companyName, exchange, sector, industry);
+  if (!swsUrl) return null;
+  
+  console.log(`Testing deterministic SWS URL for ${tickerUpper}: ${swsUrl}`);
+  const testResult = await fetchHttps(swsUrl);
+  return { url: swsUrl, body: testResult.body };
+}
+
 function fetchSwsUrlFromYahooSearch(symbol) {
   return new Promise((resolve) => {
-    const pythonPath = 'E:\\Python\\Python312\\python.exe';
     const scriptPath = path.join(__dirname, 'resolve_sws.py');
     
-    execFile(pythonPath, [scriptPath, symbol], (error, stdout, stderr) => {
+    execFile(pythonCommand, [scriptPath, symbol], (error, stdout, stderr) => {
       if (error) {
         console.error(`execFile error for ${symbol}:`, error.message);
         resolve(null);
@@ -852,14 +1094,34 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const swsUrl = await fetchSwsUrlFromYahooSearch(tickerUpper);
-      if (!swsUrl) {
-        throw new Error(`Could not find Simply Wall St URL for ticker ${tickerUpper}`);
+      let swsUrl = null;
+      let pageBody = null;
+
+      // Try deterministic resolution first
+      try {
+        const resolved = await resolveSwsUrlDeterministic(tickerUpper);
+        if (resolved) {
+          swsUrl = resolved.url;
+          pageBody = resolved.body;
+          console.log(`Successfully resolved SWS URL deterministically for ${tickerUpper}: ${swsUrl}`);
+        }
+      } catch (detError) {
+        console.warn(`Deterministic resolution failed for ${tickerUpper}:`, detError.message);
       }
 
-      console.log(`Resolved Simply Wall St URL for ${tickerUpper}: ${swsUrl}`);
-      const pageResult = await fetchHttps(swsUrl);
-      const swsData = parseSwsState(pageResult.body);
+      // Fallback to Python scraper if deterministic resolution didn't find it
+      if (!swsUrl) {
+        console.log(`Falling back to Python scraper for ${tickerUpper}...`);
+        swsUrl = await fetchSwsUrlFromYahooSearch(tickerUpper);
+        if (!swsUrl) {
+          throw new Error(`Could not find Simply Wall St URL for ticker ${tickerUpper}`);
+        }
+        console.log(`Resolved Simply Wall St URL via scraper for ${tickerUpper}: ${swsUrl}`);
+        const pageResult = await fetchHttps(swsUrl);
+        pageBody = pageResult.body;
+      }
+
+      const swsData = parseSwsState(pageBody);
       swsData.swsUrl = swsUrl;
       
       swsValuationCache[tickerUpper] = {
@@ -918,6 +1180,7 @@ const server = http.createServer(async (req, res) => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
+  await detectPythonCommand();
   console.log(`Server is running at http://localhost:${PORT}`);
 });
