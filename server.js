@@ -3,6 +3,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
+const { execFile } = require('child_process');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -471,6 +472,118 @@ async function findKalshiSeriesForTicker(ticker, companyName) {
   return null;
 }
 
+const swsValuationCache = {};
+
+function fetchSwsUrlFromYahooSearch(symbol) {
+  return new Promise((resolve) => {
+    const pythonPath = 'E:\\Python\\Python312\\python.exe';
+    const scriptPath = path.join(__dirname, 'resolve_sws.py');
+    
+    execFile(pythonPath, [scriptPath, symbol], (error, stdout, stderr) => {
+      if (error) {
+        console.error(`execFile error for ${symbol}:`, error.message);
+        resolve(null);
+        return;
+      }
+      if (stderr) {
+        console.error(`execFile stderr for ${symbol}:`, stderr);
+      }
+      const url = stdout.trim();
+      resolve(url || null);
+    });
+  });
+}
+
+function parseSwsState(html) {
+  const match = html.match(/window\.__REACT_QUERY_STATE__\s*=\s*({[\s\S]*?});?\s*<\/script>/);
+  if (!match) {
+    throw new Error('Could not find window.__REACT_QUERY_STATE__ in page source');
+  }
+  
+  let jsonStr = match[1].trim();
+  jsonStr = jsonStr.replace(/\bundefined\b/g, 'null');
+  jsonStr = jsonStr.replace(/\bNaN\b/g, 'null');
+  
+  const state = JSON.parse(jsonStr);
+  const queries = state.queries || [];
+  
+  const swsData = {
+    pe: null,
+    pb: null,
+    peg: null,
+    analystTarget: null,
+    analystCount: null,
+    peersPeAvg: null,
+    dcfFairValue: null,
+    dcfDiscount: null,
+    analystFairValue: null,
+    analystDiscount: null,
+    industryPe: null
+  };
+  
+  for (const q of queries) {
+    const key = q.queryKey;
+    const data = q.state?.data;
+    if (!data) continue;
+    
+    if (Array.isArray(key) && key[0] === 'COMPANY_PEERS') {
+      const comp = data.Company || {};
+      const analysisValue = comp.analysisValue || {};
+      
+      if (analysisValue.pe !== undefined) swsData.pe = analysisValue.pe;
+      if (analysisValue.pb !== undefined) swsData.pb = analysisValue.pb;
+      if (analysisValue.peg !== undefined) swsData.peg = analysisValue.peg;
+      if (analysisValue.priceTarget !== undefined) swsData.analystTarget = analysisValue.priceTarget;
+      if (analysisValue.priceTargetAnalystCount !== undefined) swsData.analystCount = analysisValue.priceTargetAnalystCount;
+      
+      const peers = comp.peers || [];
+      const peerPes = [];
+      for (const peer of peers) {
+        const pPe = peer.company?.analysisValue?.pe;
+        if (pPe !== undefined && pPe !== null) {
+          peerPes.push(pPe);
+        }
+      }
+      if (peerPes.length > 0) {
+        swsData.peersPeAvg = peerPes.reduce((a, b) => a + b, 0) / peerPes.length;
+      }
+    }
+    
+    if (Array.isArray(key) && key[0] === 'GetNarrativeValuationOptions') {
+      const comp = data.Company || {};
+      const options = comp.valuationOptions || [];
+      for (const opt of options) {
+        if (opt.type === 'DCF') {
+          if (opt.fairValue !== undefined) swsData.dcfFairValue = opt.fairValue;
+          if (opt.intrinsicDiscount !== undefined) swsData.dcfDiscount = opt.intrinsicDiscount;
+        } else if (opt.type === 'ANALYSTS') {
+          if (opt.fairValue !== undefined) swsData.analystFairValue = opt.fairValue;
+          if (opt.intrinsicDiscount !== undefined) swsData.analystDiscount = opt.intrinsicDiscount;
+        }
+      }
+    }
+    
+    function findIndustryPeRecursive(obj) {
+      if (!obj || typeof obj !== 'object') return null;
+      if (obj.PEVsIndustryStatement?.data?.pe_industry !== undefined) {
+        return obj.PEVsIndustryStatement.data.pe_industry;
+      }
+      for (const k of Object.keys(obj)) {
+        const res = findIndustryPeRecursive(obj[k]);
+        if (res !== null) return res;
+      }
+      return null;
+    }
+    
+    const indPe = findIndustryPeRecursive(data);
+    if (indPe !== null) {
+      swsData.industryPe = indPe;
+    }
+  }
+  
+  return swsData;
+}
+
 const server = http.createServer(async (req, res) => {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -716,6 +829,49 @@ const server = http.createServer(async (req, res) => {
       console.error(`Kalshi Proxy Error for ${ticker}:`, error.message);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: `Failed to fetch Kalshi data for ${ticker}`, details: error.message }));
+    }
+    return;
+  }
+
+  // API Route: Simply Wall St Valuation
+  if (pathname === '/api/sws-valuation') {
+    const symbol = parsedUrl.searchParams.get('symbol');
+    if (!symbol) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Missing symbol parameter' }));
+      return;
+    }
+
+    const tickerUpper = symbol.toUpperCase();
+    const now = Date.now();
+    const cached = swsValuationCache[tickerUpper];
+    if (cached && (now - cached.timestamp < 3600000)) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(cached.data));
+      return;
+    }
+
+    try {
+      const swsUrl = await fetchSwsUrlFromYahooSearch(tickerUpper);
+      if (!swsUrl) {
+        throw new Error(`Could not find Simply Wall St URL for ticker ${tickerUpper}`);
+      }
+
+      console.log(`Resolved Simply Wall St URL for ${tickerUpper}: ${swsUrl}`);
+      const pageResult = await fetchHttps(swsUrl);
+      const swsData = parseSwsState(pageResult.body);
+      
+      swsValuationCache[tickerUpper] = {
+        timestamp: now,
+        data: swsData
+      };
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(swsData));
+    } catch (error) {
+      console.error(`SWS Valuation Error for ${symbol}:`, error.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: `Failed to fetch SWS valuation for ${symbol}`, details: error.message }));
     }
     return;
   }

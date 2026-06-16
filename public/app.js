@@ -240,7 +240,7 @@ function getSignalStrength(volume) {
 }
 
 // Generate tailored strategic trade analysis details
-function getStrategicAnalysisText(ticker, delta, signal, yesPrice, priceDetails) {
+function getStrategicAnalysisText(ticker, delta, signal, yesPrice, priceDetails, item) {
   const deltaText = delta ? delta.text : 'N/A';
   const beatProb = Math.round(yesPrice * 100);
   
@@ -314,9 +314,32 @@ function getStrategicAnalysisText(ticker, delta, signal, yesPrice, priceDetails)
       • <strong>Verdict:</strong> ${correctionStatus} Samsara's 2-week return is ${returnText}. A volatility crush play (selling expensive premium) might be the primary opportunity if the price reaction is muted.`
   };
   
+  // Simply Wall St metrics summary
+  let swsSummaryHtml = '';
+  if (item && item.swsDetails) {
+    const sws = item.swsDetails;
+    if (sws.dcfFairValue !== null) {
+      const discountPct = sws.dcfDiscount ? Math.round(sws.dcfDiscount * 100) : 0;
+      const isUndervalued = discountPct >= 0;
+      const dcfText = isUndervalued 
+        ? `<span class="delta-pos"><strong>${discountPct}% Undervalued</strong></span> (SWS Fair Value is $${sws.dcfFairValue.toFixed(2)})`
+        : `<span class="delta-neg"><strong>${Math.abs(discountPct)}% Overvalued</strong></span> (SWS Fair Value is $${sws.dcfFairValue.toFixed(2)})`;
+      
+      const peText = sws.pe !== null
+        ? `SWS PE ratio is <strong>${sws.pe.toFixed(1)}x</strong> (vs ${sws.peersPeAvg ? sws.peersPeAvg.toFixed(1)+'x average for peers' : 'peers N/A'} and ${sws.industryPe ? sws.industryPe.toFixed(1)+'x for industry' : 'industry N/A'}).`
+        : '';
+        
+      const analystText = sws.analystTarget !== null
+        ? `Analyst consensus target is $${sws.analystTarget.toFixed(2)} (${sws.analystDiscount ? Math.round(sws.analystDiscount * 100) : 0}% upside with ${sws.analystCount || 0} analysts).`
+        : '';
+        
+      swsSummaryHtml = `<br/>• <strong>Simply Wall St Fundamental Valuation:</strong> ${dcfText}. ${peText} ${analystText}`;
+    }
+  }
+
   return tips[ticker.toUpperCase()] || `<strong>Price vs Value Assessment for ${ticker}:</strong><br/>
     • <strong>Price vs Value Consensus:</strong> The current market price ($${priceDetails ? priceDetails.currentPrice.toFixed(2) : '-'}) represents general investor sentiment. The expected "Value" target (analyst vs prediction consensus) indicates an expectation delta of <strong>${deltaText}</strong>.<br/>
-    • <strong>Relative Valuation:</strong> Stock return is ${returnText}. ${correctionStatus}<br/>
+    • <strong>Relative Valuation:</strong> Stock return is ${returnText}. ${correctionStatus}${swsSummaryHtml}<br/>
     • <strong>Valuation Conviction: <span class="${isStrongSignal && isUndervaluedRel ? 'delta-pos' : (isPricedInRel ? 'delta-neg' : '')}">${convictionLevel}</span></strong><br/>
       <em>${convictionReason}</em><br/>
     • <strong>Signal Liquidity:</strong> Rated as <strong>${signal.rating}</strong> (${signal.desc}).`;
@@ -1028,12 +1051,20 @@ function openDetailDrawer(item) {
     fetchPriceDetailsForDrawer(polymarket.ticker, item);
   }
 
+  // Populate SWS details if available, otherwise fetch
+  if (item.swsDetails) {
+    renderSwsValuationFields(item.swsDetails);
+  } else {
+    loadSwsValuation(polymarket.ticker, item);
+  }
+
   drawerStrategicAnalysis.innerHTML = getStrategicAnalysisText(
     polymarket.ticker, 
     delta, 
     signal, 
     polymarket.yesPrice,
-    item.priceDetails
+    item.priceDetails,
+    item
   );
 
   // Time
@@ -1152,7 +1183,8 @@ function updateDrawerPriceFields(pd, item) {
     delta, 
     signal, 
     item.polymarket.yesPrice,
-    pd
+    pd,
+    item
   );
 }
 
@@ -1451,6 +1483,129 @@ async function init() {
   ]);
 
   renderDashboard();
+}
+
+async function loadSwsValuation(ticker, item) {
+  // Show loading state
+  drawerSwsFairValue.textContent = 'Loading...';
+  drawerSwsFairValueStatus.textContent = '-';
+  drawerSwsFairValueStatus.className = 'sws-metric-sub';
+  
+  drawerSwsPePeers.textContent = 'Loading...';
+  drawerSwsPePeersStatus.textContent = '-';
+  drawerSwsPePeersStatus.className = 'sws-metric-sub';
+  
+  drawerSwsPeIndustry.textContent = 'Loading...';
+  drawerSwsPeIndustryStatus.textContent = '-';
+  drawerSwsPeIndustryStatus.className = 'sws-metric-sub';
+  
+  drawerSwsAnalystTarget.textContent = 'Loading...';
+  drawerSwsAnalystStatus.textContent = '-';
+  drawerSwsAnalystStatus.className = 'sws-metric-sub';
+
+  try {
+    const res = await fetch(`/api/sws-valuation?symbol=${ticker}`);
+    if (!res.ok) throw new Error('Failed to fetch SWS valuation');
+    const data = await res.json();
+    
+    item.swsDetails = data;
+    
+    if (selectedTicker !== ticker) return;
+    
+    renderSwsValuationFields(data);
+    
+    const delta = calculateDelta(item.polymarket.targetEps, item.nasdaq.epsForecast);
+    const signal = getSignalStrength(item.polymarket.volume);
+    drawerStrategicAnalysis.innerHTML = getStrategicAnalysisText(
+      item.polymarket.ticker, 
+      delta, 
+      signal, 
+      item.polymarket.yesPrice,
+      item.priceDetails,
+      item
+    );
+  } catch (err) {
+    console.error(`Error loading SWS valuation for ${ticker}:`, err);
+    if (selectedTicker === ticker) {
+      drawerSwsFairValue.textContent = 'Error';
+      drawerSwsPePeers.textContent = 'Error';
+      drawerSwsPeIndustry.textContent = 'Error';
+      drawerSwsAnalystTarget.textContent = 'Error';
+    }
+  }
+}
+
+function renderSwsValuationFields(data) {
+  if (data.dcfFairValue !== null && data.dcfFairValue !== undefined) {
+    drawerSwsFairValue.textContent = `$${data.dcfFairValue.toFixed(2)}`;
+    const discountPct = data.dcfDiscount ? Math.round(data.dcfDiscount * 100) : 0;
+    if (discountPct >= 0) {
+      drawerSwsFairValueStatus.textContent = `${discountPct}% Undervalued`;
+      drawerSwsFairValueStatus.className = 'sws-metric-sub undervalued';
+    } else {
+      drawerSwsFairValueStatus.textContent = `${Math.abs(discountPct)}% Overvalued`;
+      drawerSwsFairValueStatus.className = 'sws-metric-sub overvalued';
+    }
+  } else {
+    drawerSwsFairValue.textContent = 'N/A';
+    drawerSwsFairValueStatus.textContent = 'No DCF model available';
+    drawerSwsFairValueStatus.className = 'sws-metric-sub';
+  }
+  
+  if (data.pe !== null && data.pe !== undefined) {
+    drawerSwsPePeers.textContent = `${data.pe.toFixed(1)}x`;
+    if (data.peersPeAvg !== null && data.peersPeAvg !== undefined) {
+      drawerSwsPePeersStatus.textContent = `Peers Avg: ${data.peersPeAvg.toFixed(1)}x`;
+      if (data.pe <= data.peersPeAvg) {
+        drawerSwsPePeersStatus.className = 'sws-metric-sub undervalued';
+      } else {
+        drawerSwsPePeersStatus.className = 'sws-metric-sub overvalued';
+      }
+    } else {
+      drawerSwsPePeersStatus.textContent = 'No peers PE available';
+      drawerSwsPePeersStatus.className = 'sws-metric-sub';
+    }
+  } else {
+    drawerSwsPePeers.textContent = 'N/A';
+    drawerSwsPePeersStatus.textContent = 'No PE available';
+    drawerSwsPePeersStatus.className = 'sws-metric-sub';
+  }
+  
+  if (data.pe !== null && data.pe !== undefined) {
+    drawerSwsPeIndustry.textContent = `${data.pe.toFixed(1)}x`;
+    if (data.industryPe !== null && data.industryPe !== undefined) {
+      drawerSwsPeIndustryStatus.textContent = `Industry: ${data.industryPe.toFixed(1)}x`;
+      if (data.pe <= data.industryPe) {
+        drawerSwsPeIndustryStatus.className = 'sws-metric-sub undervalued';
+      } else {
+        drawerSwsPeIndustryStatus.className = 'sws-metric-sub overvalued';
+      }
+    } else {
+      drawerSwsPeIndustryStatus.textContent = 'No industry PE available';
+      drawerSwsPeIndustryStatus.className = 'sws-metric-sub';
+    }
+  } else {
+    drawerSwsPeIndustry.textContent = 'N/A';
+    drawerSwsPeIndustryStatus.textContent = 'No PE available';
+    drawerSwsPeIndustryStatus.className = 'sws-metric-sub';
+  }
+  
+  if (data.analystTarget !== null && data.analystTarget !== undefined) {
+    drawerSwsAnalystTarget.textContent = `$${data.analystTarget.toFixed(2)}`;
+    const upsidePct = data.analystDiscount ? Math.round(data.analystDiscount * 100) : 0;
+    const countStr = data.analystCount ? ` (${data.analystCount} analysts)` : '';
+    if (upsidePct >= 0) {
+      drawerSwsAnalystStatus.textContent = `${upsidePct}% Upside${countStr}`;
+      drawerSwsAnalystStatus.className = 'sws-metric-sub undervalued';
+    } else {
+      drawerSwsAnalystStatus.textContent = `${Math.abs(upsidePct)}% Downside${countStr}`;
+      drawerSwsAnalystStatus.className = 'sws-metric-sub overvalued';
+    }
+  } else {
+    drawerSwsAnalystTarget.textContent = 'N/A';
+    drawerSwsAnalystStatus.textContent = 'No analyst target available';
+    drawerSwsAnalystStatus.className = 'sws-metric-sub';
+  }
 }
 
 // Run init on load

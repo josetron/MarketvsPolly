@@ -1477,3 +1477,46 @@ body {
   gap: 6px;
   margin-top: 4px;
 }
+
+/* Simply Wall St Valuation Section Styling */
+.sws-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.sws-metric-box {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sws-metric-lbl {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+.sws-metric-val {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.sws-metric-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.sws-metric-sub.undervalued {
+  color: var(--accent-yes);
+}
+.sws-metric-sub.overvalued {
+  color: var(--accent-no);
+}
+.sws-metric-sub.neutral {
+  color: var(--text-secondary);
+}
