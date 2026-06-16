@@ -833,6 +833,24 @@ body {
   background: rgba(139, 92, 246, 0.05);
   border-color: rgba(139, 92, 246, 0.25);
 }
+.metric-box.clickable-box {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.metric-box.clickable-box:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
+}
+.metric-box.clickable-box#drawerTargetEpsLink:hover {
+  border-color: rgba(139, 92, 246, 0.45);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+}
+.metric-box.clickable-box#drawerForecastEpsLink:hover {
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
 .metric-label {
   font-size: 10px;
   color: var(--text-secondary);
@@ -1134,6 +1152,9 @@ body {
 }
 .assessment-val.signal-weak {
   color: #f59e0b;
+}
+.assessment-val.signal-closed {
+  color: var(--text-secondary);
 }
 
 .assessment-analysis {

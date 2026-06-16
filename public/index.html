@@ -115,8 +115,8 @@
       <div id="strategyContent" class="strategy-content hidden">
         <div class="strategy-grid">
           <div class="strategy-card">
-            <h4>1. Compare to the "Whisper Number"</h4>
-            <p>Look for wide deltas between the <strong>Nasdaq Estimate</strong> (Wall Street consensus) and the <strong>Polymarket Target</strong> (prediction consensus). If there is a large delta and the stock price has traded flat/down recently, the equity market may be mispricing an upside beat. Conversely, if the stock has already rallied heavily, it may be already priced in.</p>
+            <h4>1. Compare the Two Consensus Benchmarks</h4>
+            <p>Look for deltas between the <strong>Nasdaq Estimate</strong> (current Zacks consensus from Nasdaq.com) and the <strong>Polymarket Target</strong> (Seeking Alpha consensus frozen at contract creation). A wide delta indicates that analyst expectations have shifted or differ between platforms, which can signal mispriced opportunities.</p>
           </div>
           
           <div class="strategy-card">
@@ -242,21 +242,21 @@
         <div class="drawer-section">
           <h3>Metrics Comparison</h3>
           <div class="metrics-grid">
-            <div class="metric-box">
-              <span class="metric-label">Polymarket Target EPS</span>
+            <a id="drawerTargetEpsLink" href="#" target="_blank" class="metric-box clickable-box" title="Click to view this contract on Polymarket. (Target based on Seeking Alpha consensus at creation)">
+              <span class="metric-label">Poly Target (SA) <svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-left: 2px; vertical-align: middle; opacity: 0.8;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg></span>
               <span class="metric-value" id="drawerTargetEps">$1.68</span>
               <span class="metric-sub" id="drawerEpsType">GAAP</span>
-            </div>
+            </a>
             <div class="metric-box hidden" id="drawerKalshiBox">
               <span class="metric-label">Kalshi Mentions</span>
               <span class="metric-value" id="drawerKalshiValue">-</span>
               <span class="metric-sub">Active Buzzwords</span>
             </div>
-            <div class="metric-box">
-              <span class="metric-label">Nasdaq Forecast EPS</span>
+            <a id="drawerForecastEpsLink" href="#" target="_blank" class="metric-box clickable-box" title="Click to view earnings calendar page on Nasdaq.com. (Forecast based on Zacks consensus)">
+              <span class="metric-label">Nasdaq Est (Zacks) <svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-left: 2px; vertical-align: middle; opacity: 0.8;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg></span>
               <span class="metric-value" id="drawerForecastEps">$1.67</span>
               <span class="metric-sub" id="drawerNoOfEsts">9 Analysts</span>
-            </div>
+            </a>
             <div class="metric-box highlighted">
               <span class="metric-label">Actual Reported EPS</span>
               <span class="metric-value" id="drawerActualEps">-</span>
@@ -301,6 +301,18 @@
                 <span id="drawerOpportunityRating" class="assessment-val">-</span>
               </div>
             </div>
+
+            <div class="assessment-row">
+              <div class="assessment-col">
+                <span class="assessment-lbl" id="drawerSectorBeatLabel">Sector Beat Rate</span>
+                <span id="drawerSectorBeatRate" class="assessment-val">-</span>
+              </div>
+              <div class="assessment-col">
+                <span class="assessment-lbl">Sector Beats / Total</span>
+                <span id="drawerSectorBeatRatio" class="assessment-val">-</span>
+              </div>
+            </div>
+
 
             <div class="assessment-row">
               <div class="assessment-col">

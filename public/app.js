@@ -70,6 +70,9 @@ const drawerCurrentPrice = document.getElementById('drawerCurrentPrice');
 const drawerStockReturn = document.getElementById('drawerStockReturn');
 const drawerOpportunityRating = document.getElementById('drawerOpportunityRating');
 const drawer52WeekRange = document.getElementById('drawer52WeekRange');
+const drawerSectorBeatLabel = document.getElementById('drawerSectorBeatLabel');
+const drawerSectorBeatRate = document.getElementById('drawerSectorBeatRate');
+const drawerSectorBeatRatio = document.getElementById('drawerSectorBeatRatio');
 
 // ==========================================================================
 // HELPERS & PARSERS
@@ -340,6 +343,7 @@ async function fetchPolymarketData() {
         description: m.description,
         targetEps: targetEps,
         epsType: epsType,
+        closed: m.closed === true || m.closed === 'true',
         originalData: m
       };
     }).filter(m => m.ticker !== null); // Only keep contracts where we could extract a ticker
@@ -624,13 +628,20 @@ function createMatchedCard(item) {
   card.className = 'matched-card';
   
   // Setup actual reported EPS status
-  let actualEpsHtml = '<span class="comp-value actual">-</span>';
+  let actualEpsHtml = '';
   if (nasdaq.eps) {
     const estimate = parseFloat((nasdaq.epsForecast || '').replace('$', ''));
     const actual = parseFloat(nasdaq.eps.replace('$', ''));
     const isBeat = actual >= estimate;
     const statusClass = isBeat ? 'beat' : 'miss';
     actualEpsHtml = `<span class="comp-value actual ${statusClass}">${nasdaq.eps}</span>`;
+  } else if (polymarket.closed) {
+    const isBeat = polymarket.yesPrice > 0.9;
+    const statusClass = isBeat ? 'beat' : 'miss';
+    const label = isBeat ? 'Beat' : 'Miss/Inline';
+    actualEpsHtml = `<span class="comp-value actual ${statusClass}" title="Actual EPS not yet updated on Nasdaq calendar; result sourced from Polymarket contract resolution.">${label} (Poly)</span>`;
+  } else {
+    actualEpsHtml = `<span class="comp-value actual">-</span><button class="btn-manual-eps" title="Enter actual EPS manually" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:10px; margin-left:4px; padding:0 2px;">✎</button>`;
   }
 
   const yesPercent = (polymarket.yesPrice * 100).toFixed(1);
@@ -650,7 +661,9 @@ function createMatchedCard(item) {
   }
 
   const signal = getSignalStrength(polymarket.volume);
-  const signalHtml = `<span class="card-signal-badge ${signal.class}">${signal.rating}</span>`;
+  const signalHtml = polymarket.closed 
+    ? `<span class="card-signal-badge signal-closed">Resolved</span>`
+    : `<span class="card-signal-badge ${signal.class}">${signal.rating}</span>`;
   const kalshiBadgeHtml = `<span class="card-kalshi-badge hidden">Kalshi Active</span>`;
 
   card.innerHTML = `
@@ -676,16 +689,16 @@ function createMatchedCard(item) {
     </div>
     
     <div class="card-comparisons">
-      <div class="comp-box">
-        <span class="comp-label">Poly Target</span>
+      <div class="comp-box" title="The fixed target (strike price) set at contract creation, based on Seeking Alpha analyst consensus.">
+        <span class="comp-label">Poly Target (SA)</span>
         <span class="comp-value target">${polymarket.targetEps}</span>
       </div>
       <div class="comp-box kalshi-comp-box hidden">
         <span class="comp-label">Kalshi Mentions</span>
         <span class="comp-value kalshi-value">-</span>
       </div>
-      <div class="comp-box">
-        <span class="comp-label">Nasdaq Est</span>
+      <div class="comp-box" title="The current analyst consensus estimate retrieved directly from Nasdaq.com (powered by Zacks).">
+        <span class="comp-label">Nasdaq Est (Zacks)</span>
         <span class="comp-value forecast">${nasdaq.epsForecast || '-'}</span>
       </div>
       <div class="comp-box">
@@ -706,7 +719,12 @@ function createMatchedCard(item) {
   `;
 
   // Click handler to open detail drawer
-  card.addEventListener('click', () => openDetailDrawer(item));
+  card.addEventListener('click', (e) => {
+    if (e.target.classList.contains('btn-manual-eps') || e.target.closest('.btn-manual-eps')) {
+      return; // Do not open drawer
+    }
+    openDetailDrawer(item);
+  });
 
   // Click handler for ticker badge to open TradingView
   const tickerBadgeEl = card.querySelector('.ticker-badge');
@@ -715,6 +733,20 @@ function createMatchedCard(item) {
     tickerBadgeEl.addEventListener('click', (e) => {
       e.stopPropagation(); // Prevent drawer from opening
       window.open(`https://www.tradingview.com/symbols/${polymarket.ticker.toUpperCase()}/forecast/`, '_blank');
+    });
+  }
+
+  // Click handler for manual EPS entry button
+  const btnManual = card.querySelector('.btn-manual-eps');
+  if (btnManual) {
+    btnManual.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const val = prompt(`Enter actual reported EPS for ${polymarket.ticker} (e.g. 0.22):`);
+      if (val !== null && val.trim() !== '') {
+        const cleanVal = val.trim();
+        nasdaq.eps = cleanVal.startsWith('$') ? cleanVal : `$${cleanVal}`;
+        renderDashboard();
+      }
     });
   }
 
@@ -886,7 +918,7 @@ function openDetailDrawer(item) {
   drawerEpsType.textContent = polymarket.epsType;
   
   drawerForecastEps.textContent = nasdaq.epsForecast || '-';
-  drawerNoOfEsts.textContent = nasdaq.noOfEsts ? `${nasdaq.noOfEsts} Analysts` : 'Nasdaq Forecast';
+  drawerNoOfEsts.textContent = nasdaq.noOfEsts ? `${nasdaq.noOfEsts} Analysts` : 'Nasdaq Est (Zacks)';
   
   // Actual Result
   if (nasdaq.eps) {
@@ -909,8 +941,14 @@ function openDetailDrawer(item) {
       drawerActualEps.classList.add('miss');
       if (nasdaq.surprise) drawerSurprise.className = 'metric-sub miss';
     }
+  } else if (polymarket.closed) {
+    const isBeat = polymarket.yesPrice > 0.9;
+    drawerActualEps.textContent = isBeat ? 'Beat' : 'Miss/Inline';
+    drawerActualEps.className = `metric-value ${isBeat ? 'beat' : 'miss'}`;
+    drawerSurprise.textContent = 'Resolved via Poly';
+    drawerSurprise.className = 'metric-sub';
   } else {
-    drawerActualEps.textContent = '-';
+    drawerActualEps.innerHTML = `- <button id="btnDrawerManualEps" title="Enter actual EPS manually" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:12px; margin-left:4px; padding:0 2px; vertical-align:middle;">✎</button>`;
     drawerActualEps.className = 'metric-value';
     drawerSurprise.textContent = 'Surprise: -';
     drawerSurprise.className = 'metric-sub';
@@ -933,17 +971,31 @@ function openDetailDrawer(item) {
   }
 
   const signal = getSignalStrength(polymarket.volume);
-  drawerSignalStrength.textContent = signal.rating;
-  drawerSignalStrength.className = `assessment-val ${signal.class}`;
+  if (polymarket.closed) {
+    drawerSignalStrength.textContent = 'Resolved';
+    drawerSignalStrength.className = 'assessment-val signal-closed';
+  } else {
+    drawerSignalStrength.textContent = signal.rating;
+    drawerSignalStrength.className = `assessment-val ${signal.class}`;
+  }
 
   // Populate Stock Price details if available
   if (item.priceDetails) {
     updateDrawerPriceFields(item.priceDetails, item);
+    loadSectorStats(item.priceDetails.sector, selectedDate);
   } else {
     drawerCurrentPrice.textContent = 'Loading...';
     drawerStockReturn.textContent = 'Loading...';
     drawerOpportunityRating.textContent = 'Loading...';
     drawer52WeekRange.textContent = 'Loading...';
+    
+    if (drawerSectorBeatLabel) drawerSectorBeatLabel.textContent = 'Sector Beat Rate';
+    if (drawerSectorBeatRate) {
+      drawerSectorBeatRate.textContent = 'Loading...';
+      drawerSectorBeatRate.className = 'assessment-val';
+    }
+    if (drawerSectorBeatRatio) drawerSectorBeatRatio.textContent = 'Loading...';
+    
     const drawerSectorReturn = document.getElementById('drawerSectorReturn');
     const drawerRelativeReturn = document.getElementById('drawerRelativeReturn');
     if (drawerSectorReturn) drawerSectorReturn.textContent = 'Loading...';
@@ -969,11 +1021,36 @@ function openDetailDrawer(item) {
   btnLinkPolymarket.href = `https://polymarket.com/event/${polymarket.slug}`;
   btnLinkNasdaq.href = `https://www.nasdaq.com/market-activity/stocks/${polymarket.ticker.toLowerCase()}/earnings`;
 
+  // Dynamic Metrics Boxes Links
+  const drawerTargetEpsLink = document.getElementById('drawerTargetEpsLink');
+  const drawerForecastEpsLink = document.getElementById('drawerForecastEpsLink');
+  if (drawerTargetEpsLink) {
+    drawerTargetEpsLink.href = `https://polymarket.com/event/${polymarket.slug}`;
+  }
+  if (drawerForecastEpsLink) {
+    drawerForecastEpsLink.href = `https://www.nasdaq.com/market-activity/stocks/${polymarket.ticker.toLowerCase()}/earnings`;
+  }
+
   // Trigger Kalshi markets load
   loadKalshiMarkets(polymarket.ticker, nasdaq.name);
 
   // Display the drawer
   detailDrawer.classList.remove('hidden');
+
+  // Click handler for drawer manual EPS entry
+  const btnDrawerManual = document.getElementById('btnDrawerManualEps');
+  if (btnDrawerManual) {
+    btnDrawerManual.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const val = prompt(`Enter actual reported EPS for ${polymarket.ticker} (e.g. 0.22):`);
+      if (val !== null && val.trim() !== '') {
+        const cleanVal = val.trim();
+        nasdaq.eps = cleanVal.startsWith('$') ? cleanVal : `$${cleanVal}`;
+        renderDashboard();
+        openDetailDrawer(item); // Refresh drawer
+      }
+    });
+  }
 }
 
 function updateDrawerPriceFields(pd, item) {
@@ -1119,9 +1196,48 @@ async function fetchPriceDetailsForDrawer(ticker, item) {
 
     if (selectedTicker === ticker && detailDrawer && !detailDrawer.classList.contains('hidden')) {
       updateDrawerPriceFields(data, item);
+      loadSectorStats(data.sector, selectedDate);
     }
   } catch (e) {
     console.error('Drawer price fetch failed:', e.message);
+  }
+}
+
+async function loadSectorStats(sector, date) {
+  if (!drawerSectorBeatLabel || !drawerSectorBeatRate || !drawerSectorBeatRatio) return;
+  
+  if (!sector) {
+    drawerSectorBeatLabel.textContent = 'Sector Beat Rate';
+    drawerSectorBeatRate.textContent = 'N/A';
+    drawerSectorBeatRate.className = 'assessment-val';
+    drawerSectorBeatRatio.textContent = 'N/A';
+    return;
+  }
+  
+  drawerSectorBeatLabel.textContent = `${sector} Beat Rate`;
+  drawerSectorBeatRate.textContent = 'Loading...';
+  drawerSectorBeatRatio.textContent = 'Loading...';
+  
+  try {
+    const res = await fetch(`/api/sector-stats?sector=${encodeURIComponent(sector)}&date=${date}`);
+    if (!res.ok) throw new Error('Fetch sector stats failed');
+    const data = await res.json();
+    
+    drawerSectorBeatRate.textContent = `${data.beatRate.toFixed(1)}%`;
+    drawerSectorBeatRatio.textContent = `${data.beats} / ${data.totalReports}`;
+    
+    if (data.beatRate >= 65.0) {
+      drawerSectorBeatRate.className = 'assessment-val delta-pos';
+    } else if (data.beatRate <= 45.0) {
+      drawerSectorBeatRate.className = 'assessment-val delta-neg';
+    } else {
+      drawerSectorBeatRate.className = 'assessment-val';
+    }
+  } catch (err) {
+    console.error('Failed to load sector stats:', err);
+    drawerSectorBeatRate.textContent = 'Error';
+    drawerSectorBeatRate.className = 'assessment-val';
+    drawerSectorBeatRatio.textContent = 'Error';
   }
 }
 
