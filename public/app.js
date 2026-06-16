@@ -267,34 +267,59 @@ function getStrategicAnalysisText(ticker, delta, signal, yesPrice, priceDetails)
     }
   }
 
+  // Price vs Value Conviction calculation
+  let convictionLevel = 'Low / Mixed';
+  let convictionReason = 'Expectation delta is aligned and relative performance is neutral.';
+  
+  const hasDelta = delta && Math.abs(delta.value) >= 0.01;
+  const isStrongSignal = signal.rating === 'Strong Signal';
+  const isUndervaluedRel = priceDetails && priceDetails.relativeReturn <= 3.0;
+  const isPricedInRel = priceDetails && priceDetails.relativeReturn >= 7.5;
+  
+  if (hasDelta && isUndervaluedRel && isStrongSignal) {
+    convictionLevel = '⚡ High Conviction (Undervalued)';
+    convictionReason = 'The market price has not run up to price in the event (+2-week return is flat/down), there is a significant expectation delta, and contract volume is high (strong institutional interest).';
+  } else if (hasDelta && isPricedInRel) {
+    convictionLevel = '⚠️ High Conviction (Priced In)';
+    convictionReason = 'The stock has run up strongly relative to its sector (+2-week relative return is high), suggesting the market has already corrected to absorb the earnings expectation. Short-term upside on a beat may be capped.';
+  } else if (!hasDelta && isUndervaluedRel && isStrongSignal) {
+    convictionLevel = 'Moderate Conviction';
+    convictionReason = 'Consensus estimates are aligned between analysts and prediction markets, but the stock remains relatively undervalued compared to its sector leading into the release, offering a safety margin.';
+  } else if (signal.rating === 'Weak Signal') {
+    convictionLevel = 'Low Conviction (Speculative)';
+    convictionReason = 'Prediction contract volume is shallow (weak signal), meaning odds are driven by thin retail speculation and are vulnerable to sudden manipulation.';
+  }
+
   const tips = {
     'LULU': `<strong>Lululemon ($LULU) Strategy Notes:</strong><br/>
       • <strong>Expectation Delta:</strong> Aligned (${deltaText} relative to forecast).<br/>
       • <strong>2-Week Performance:</strong> ${returnText} return. ${correctionStatus}<br/>
-      • <strong>Forward Guidance Risk:</strong> Wall Street consensus stands at $1.67 EPS, while Polymarket targets $1.68. The backward-looking beat is highly probable (${beatProb}%), but forward Q2 guidance is the real driver. A soft outlook due to athleisure consumer patterns could sink the stock despite a Q1 headline beat.<br/>
+      • <strong>Price vs Value Conviction: <span class="opp-neutral">Moderate</span></strong> (Mixed inputs: backward-looking beat is highly probable [${beatProb}%], but forward Q2 guidance is the real driver. A soft outlook due to athleisure consumer patterns could sink the stock despite a Q1 headline beat).<br/>
       • <strong>Opportunity:</strong> Look to fade initial algorithmic spikes if headline beats but Q2 guidance underperforms.`,
     
     'DOCU': `<strong>DocuSign ($DOCU) Strategy Notes:</strong><br/>
       • <strong>Whisper Discrepancy:</strong> Polymarket expects $0.99 EPS vs. Wall Street's $0.38 consensus forecast (a massive delta of ${deltaText}).<br/>
       • <strong>Correction Check:</strong> 2-week stock return is <strong>${returnText}</strong>.<br/>
-      • <strong>Trade Verdict:</strong> ${correctionStatus}<br/>
-      • <strong>Opportunity:</strong> If the 2-week return remains flat or down, the market is severely mispricing this $0.61 whisper beat. If it has already rallied heavily ($> 8\%$), avoid chasing the long side.`,
+      • <strong>Price vs Value Conviction: <span class="${isUndervaluedRel ? 'delta-pos' : 'delta-neg'}">${isUndervaluedRel ? '⚡ High (Undervalued)' : '⚠️ Low/Priced-In'}</span></strong> (${isUndervaluedRel ? 'The market has NOT yet run up, meaning the $0.61 whisper beat represents a high-probability relative mispricing.' : 'The market has already run up, suggesting the whisper beat is priced in. Do not chase the long side.'})<br/>
+      • <strong>Opportunity:</strong> Long trade holds conviction ONLY if relative return remains flat or negative leading into release.`,
     
     'RBRK': `<strong>Rubrik ($RBRK) Strategy Notes:</strong><br/>
       • <strong>High-Probability Beat:</strong> Targeting -$0.03 EPS vs. Nasdaq forecast of -$0.44. Speculators price in a ${beatProb}% probability of beating.<br/>
-      • <strong>Liquidity Check:</strong> ${signal.rating} (${signal.desc}). The volume is shallow, suggesting retail speculation dominates. The signal has low institutional weight.<br/>
+      • <strong>Price vs Value Conviction: <span class="delta-neg">Low (Speculative)</span></strong> (The prediction contract volume is shallow [weak signal], meaning odds represent retail speculation rather than institutional positioning. Treat the beat probability with caution).<br/>
       • <strong>Verdict:</strong> ${correctionStatus} Rubrik's 2-week price movement is ${returnText}. Focus on growth guidance rather than headline prediction contracts.`,
       
     'IOT': `<strong>Samsara ($IOT) Strategy Notes:</strong><br/>
       • <strong>Beat Chance:</strong> Extremely high beat probability (${beatProb}%).<br/>
-      • <strong>IV & Implied Move:</strong> Options markets price in a huge implied move (~15%). Expensive implied volatility skew toward puts indicates market fear of forward guidance, regardless of a beat.<br/>
+      • <strong>Price vs Value Conviction: <span class="opp-neutral">Mixed / High Risk</span></strong> (Options markets price in a huge implied move (~15%) and expensive put skew, indicating market fear of forward guidance regardless of a beat. High pricing volatility risk).<br/>
       • <strong>Verdict:</strong> ${correctionStatus} Samsara's 2-week return is ${returnText}. A volatility crush play (selling expensive premium) might be the primary opportunity if the price reaction is muted.`
   };
   
-  return tips[ticker.toUpperCase()] || `<strong>Strategic Trade Guidelines for ${ticker}:</strong><br/>
-    • <strong>Expectation Delta:</strong> Polymarket target vs. Nasdaq forecast is ${deltaText}.<br/>
-    • <strong>2-Week Performance:</strong> Stock return is ${returnText}. ${correctionStatus}<br/>
-    • <strong>Signal Strength:</strong> Rated as <strong>${signal.rating}</strong> based on contract liquidity. Treat low volume signals with extreme caution as they represent retail speculation rather than institutional positioning.`;
+  return tips[ticker.toUpperCase()] || `<strong>Price vs Value Assessment for ${ticker}:</strong><br/>
+    • <strong>Price vs Value Consensus:</strong> The current market price ($${priceDetails ? priceDetails.currentPrice.toFixed(2) : '-'}) represents general investor sentiment. The expected "Value" target (analyst vs prediction consensus) indicates an expectation delta of <strong>${deltaText}</strong>.<br/>
+    • <strong>Relative Valuation:</strong> Stock return is ${returnText}. ${correctionStatus}<br/>
+    • <strong>Valuation Conviction: <span class="${isStrongSignal && isUndervaluedRel ? 'delta-pos' : (isPricedInRel ? 'delta-neg' : '')}">${convictionLevel}</span></strong><br/>
+      <em>${convictionReason}</em><br/>
+    • <strong>Signal Liquidity:</strong> Rated as <strong>${signal.rating}</strong> (${signal.desc}).`;
 }
 
 // ==========================================================================
