@@ -713,8 +713,14 @@ async function resolveSwsUrlDeterministic(tickerUpper) {
   if (!swsUrl) return null;
   
   console.log(`Testing deterministic SWS URL for ${tickerUpper}: ${swsUrl}`);
-  const testResult = await fetchHttps(swsUrl);
-  return { url: swsUrl, body: testResult.body };
+  try {
+    const testResult = await fetchHttps(swsUrl);
+    return { url: swsUrl, body: testResult.body, isBlocked: false };
+  } catch (err) {
+    console.warn(`Fetch test failed for SWS URL: ${swsUrl}. Error: ${err.message}`);
+    const is403 = err.message && (err.message.includes('403') || err.message.includes('401') || err.message.includes('503'));
+    return { url: swsUrl, body: null, isBlocked: true, blockReason: is403 ? 'Cloudflare block' : err.message };
+  }
 }
 
 function fetchSwsUrlFromYahooSearch(symbol) {
@@ -1096,6 +1102,7 @@ const server = http.createServer(async (req, res) => {
     try {
       let swsUrl = null;
       let pageBody = null;
+      let isBlocked = false;
 
       // Try deterministic resolution first
       try {
@@ -1103,10 +1110,11 @@ const server = http.createServer(async (req, res) => {
         if (resolved) {
           swsUrl = resolved.url;
           pageBody = resolved.body;
-          console.log(`Successfully resolved SWS URL deterministically for ${tickerUpper}: ${swsUrl}`);
+          isBlocked = resolved.isBlocked;
+          console.log(`Resolved SWS URL deterministically for ${tickerUpper}: ${swsUrl} (Blocked? ${isBlocked})`);
         }
       } catch (detError) {
-        console.warn(`Deterministic resolution failed for ${tickerUpper}:`, detError.message);
+        console.warn(`Deterministic resolution totally failed for ${tickerUpper}:`, detError.message);
       }
 
       // Fallback to Python scraper if deterministic resolution didn't find it
@@ -1117,12 +1125,40 @@ const server = http.createServer(async (req, res) => {
           throw new Error(`Could not find Simply Wall St URL for ticker ${tickerUpper}`);
         }
         console.log(`Resolved Simply Wall St URL via scraper for ${tickerUpper}: ${swsUrl}`);
-        const pageResult = await fetchHttps(swsUrl);
-        pageBody = pageResult.body;
+        try {
+          const pageResult = await fetchHttps(swsUrl);
+          pageBody = pageResult.body;
+        } catch (scrapeErr) {
+          console.warn(`Scraper fetch failed for ${swsUrl}:`, scrapeErr.message);
+          isBlocked = true;
+        }
       }
 
-      const swsData = parseSwsState(pageBody);
+      // Parse state if we have a body, otherwise default to null metrics
+      let swsData = {
+        pe: null,
+        pb: null,
+        peg: null,
+        analystTarget: null,
+        analystCount: null,
+        peersPeAvg: null,
+        dcfFairValue: null,
+        dcfDiscount: null,
+        analystFairValue: null,
+        analystDiscount: null,
+        industryPe: null
+      };
+
+      if (pageBody) {
+        try {
+          swsData = parseSwsState(pageBody);
+        } catch (parseErr) {
+          console.error(`Failed to parse SWS state for ${tickerUpper}:`, parseErr.message);
+        }
+      }
+
       swsData.swsUrl = swsUrl;
+      swsData.isBlocked = isBlocked;
       
       swsValuationCache[tickerUpper] = {
         timestamp: now,

@@ -1571,6 +1571,25 @@ function renderSwsValuationFields(data) {
     if (drawerSwsAnalystLink) drawerSwsAnalystLink.href = data.swsUrl + '#future';
   }
 
+  if (data.isBlocked) {
+    drawerSwsFairValue.textContent = 'N/A';
+    drawerSwsFairValueStatus.textContent = 'Click card to view DCF model';
+    drawerSwsFairValueStatus.className = 'sws-metric-sub undervalued';
+
+    drawerSwsPePeers.textContent = 'N/A';
+    drawerSwsPePeersStatus.textContent = 'Click card to view PE vs Peers';
+    drawerSwsPePeersStatus.className = 'sws-metric-sub undervalued';
+
+    drawerSwsPeIndustry.textContent = 'N/A';
+    drawerSwsPeIndustryStatus.textContent = 'Click card to view PE vs Industry';
+    drawerSwsPeIndustryStatus.className = 'sws-metric-sub undervalued';
+
+    drawerSwsAnalystTarget.textContent = 'N/A';
+    drawerSwsAnalystStatus.textContent = 'Click card to view Analyst Target';
+    drawerSwsAnalystStatus.className = 'sws-metric-sub undervalued';
+    return;
+  }
+
   if (data.dcfFairValue !== null && data.dcfFairValue !== undefined) {
     drawerSwsFairValue.textContent = `$${data.dcfFairValue.toFixed(2)}`;
     const discountPct = data.dcfDiscount ? Math.round(data.dcfDiscount * 100) : 0;
